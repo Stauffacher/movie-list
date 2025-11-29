@@ -542,11 +542,15 @@ export default function MovieListApp() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Platforms</SelectItem>
-                {uniquePlatforms.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {p}
-                  </SelectItem>
-                ))}
+                <SelectItem value="Netflix">Netflix</SelectItem>
+                <SelectItem value="Prime Video">Prime Video</SelectItem>
+                <SelectItem value="Disney+">Disney+</SelectItem>
+                <SelectItem value="HBO Max">HBO Max</SelectItem>
+                <SelectItem value="Apple TV+">Apple TV+</SelectItem>
+                <SelectItem value="Hulu">Hulu</SelectItem>
+                <SelectItem value="Bluewin">Bluewin</SelectItem>
+                <SelectItem value="Serienstream">Serienstream</SelectItem>
+                <SelectItem value="Others">Others</SelectItem>
               </SelectContent>
             </Select>
 

@@ -73,7 +73,7 @@ export async function searchTMDB(query: string): Promise<TMDBMovieResult[]> {
     // Filter out person results and only include movie/tv
     const filteredResults = data.results.filter(
       (result) => result.media_type === "movie" || result.media_type === "tv",
-    )
+    ) as Array<TMDBResult & { media_type: "movie" | "tv" }>
 
     // Transform to our format
     const transformedResults: TMDBMovieResult[] = filteredResults.map((result) => {
@@ -89,7 +89,7 @@ export async function searchTMDB(query: string): Promise<TMDBMovieResult[]> {
         year,
         type,
         posterUrl,
-        mediaType: result.media_type,
+        mediaType: result.media_type as "movie" | "tv",
       }
     })
 

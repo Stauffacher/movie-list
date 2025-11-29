@@ -17,11 +17,12 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Trash2, Edit2, Plus, Search, Star, Tv, Download, Heart } from "lucide-react"
+import { Trash2, Edit2, Plus, Search, Star, Tv, Download, Heart, Loader2 } from "lucide-react"
 import { getMovies, createMovie, updateMovie, deleteMovie } from "@/lib/movies-api"
 import type { Movie, MovieFormData } from "@/lib/movie-types"
 import { MovieAutocomplete } from "@/components/movie-autocomplete"
 import type { TMDBMovieResult } from "@/lib/searchTMDB"
+import { getFullSeriesData, type FullSeriesData, type FullSeriesSeason, type FullSeriesEpisode } from "@/lib/tmdb"
 
 function StarRating({ value, onChange }: { value: number; onChange?: (rating: number) => void }) {
   return (
@@ -60,6 +61,13 @@ export default function MovieListApp() {
   const [coverImage, setCoverImage] = useState("")
   const [genreInput, setGenreInput] = useState("")
   const [watchAgain, setWatchAgain] = useState(false)
+
+  // TMDB TV Series seasons/episodes state
+  const [fullSeriesData, setFullSeriesData] = useState<FullSeriesData | null>(null)
+  const [isLoadingSeasons, setIsLoadingSeasons] = useState(false)
+  const [selectedTvSeriesId, setSelectedTvSeriesId] = useState<number | null>(null)
+  const [selectedSeason, setSelectedSeason] = useState<string>("")
+  const [selectedEpisode, setSelectedEpisode] = useState<FullSeriesEpisode | null>(null)
 
   const [searchQuery, setSearchQuery] = useState("")
   const [filterType, setFilterType] = useState<string>("all")
@@ -140,6 +148,11 @@ export default function MovieListApp() {
     setCoverImage("")
     setGenreInput("")
     setWatchAgain(false)
+    // Reset TMDB TV series data
+    setFullSeriesData(null)
+    setSelectedTvSeriesId(null)
+    setSelectedSeason("")
+    setSelectedEpisode(null)
   }
 
   async function handleAddMovie() {
@@ -260,16 +273,80 @@ export default function MovieListApp() {
     }
   }
 
-  function handleTMDBSelect(result: TMDBMovieResult) {
+  async function handleTMDBSelect(result: TMDBMovieResult) {
     // Autofill form fields from TMDB result
     setMovieName(result.title)
     setType(result.type)
     if (result.posterUrl) {
       setCoverImage(result.posterUrl)
     }
-    // Optionally add year to notes if it doesn't already have content
-    if (result.year && !notes.trim()) {
-      setNotes(`Released: ${result.year}`)
+
+    // If it's a TV series, fetch all seasons and episodes
+    if (result.mediaType === "tv") {
+      setSelectedTvSeriesId(result.id)
+      setIsLoadingSeasons(true)
+      setSelectedSeason("")
+      setSelectedEpisode(null)
+      setSeason("")
+      setEpisode("")
+
+      try {
+        console.log("Fetching full series data for TV series ID:", result.id)
+        const seriesData = await getFullSeriesData(result.id)
+        console.log("Series data received:", seriesData)
+        setFullSeriesData(seriesData)
+      } catch (error: any) {
+        console.error("Failed to fetch full series data:", error)
+        alert(`Failed to load seasons and episodes: ${error?.message || "Unknown error"}`)
+        setFullSeriesData(null)
+      } finally {
+        setIsLoadingSeasons(false)
+      }
+    } else {
+      // Reset TV series data for movies
+      setFullSeriesData(null)
+      setSelectedTvSeriesId(null)
+      setSelectedSeason("")
+      setSelectedEpisode(null)
+
+      // Optionally add year to notes if it doesn't already have content
+      if (result.year && !notes.trim()) {
+        setNotes(`Released: ${result.year}`)
+      }
+    }
+  }
+
+  function handleSeasonSelect(seasonNumber: string) {
+    setSelectedSeason(seasonNumber)
+    setSelectedEpisode(null)
+    setEpisode("")
+    setSeason(seasonNumber)
+  }
+
+  function handleEpisodeSelect(episode: FullSeriesEpisode) {
+    setSelectedEpisode(episode)
+    setEpisode(episode.episodeNumber.toString())
+
+    // Autofill additional episode details
+    if (episode.airDate) {
+      // Set entry date to episode air date if not already set
+      if (!entryDate) {
+        setEntryDate(episode.airDate)
+      }
+    }
+
+    // Add episode details to notes
+    let noteParts: string[] = []
+    if (episode.title && episode.title !== `Episode ${episode.episodeNumber}`) {
+      noteParts.push(`Episode: ${episode.title}`)
+    }
+    if (episode.airDate) {
+      noteParts.push(`Aired: ${episode.airDate}`)
+    }
+
+    if (noteParts.length > 0) {
+      const episodeNote = noteParts.join(" | ")
+      setNotes(episodeNote)
     }
   }
 
@@ -465,28 +542,103 @@ export default function MovieListApp() {
                     </div>
 
                     {type === "Series" && (
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="season">Season</Label>
-                          <Input
-                            id="season"
-                            type="number"
-                            min="1"
-                            placeholder="e.g., 1"
-                            value={season}
-                            onChange={(e) => setSeason(e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="episode">Episode</Label>
-                          <Input
-                            id="episode"
-                            type="number"
-                            min="1"
-                            placeholder="e.g., 10"
-                            value={episode}
-                            onChange={(e) => setEpisode(e.target.value)}
-                          />
+                      <div className="space-y-4">
+                        {/* TMDB Season/Episode Selectors (when available) */}
+                        {isLoadingSeasons && (
+                          <div className="flex items-center justify-center py-4">
+                            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
+                            <span className="text-sm text-muted-foreground">
+                              Loading seasons and episodes...
+                            </span>
+                          </div>
+                        )}
+
+                        {!isLoadingSeasons && fullSeriesData && fullSeriesData.seasons.length > 0 && (
+                          <>
+                            <div className="space-y-2">
+                              <Label htmlFor="tmdb-season">Season (from TMDB)</Label>
+                              <Select value={selectedSeason} onValueChange={handleSeasonSelect}>
+                                <SelectTrigger id="tmdb-season">
+                                  <SelectValue placeholder="Select a season" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {fullSeriesData.seasons.map((seasonData) => (
+                                    <SelectItem
+                                      key={seasonData.seasonNumber}
+                                      value={seasonData.seasonNumber.toString()}
+                                    >
+                                      Season {seasonData.seasonNumber}
+                                      {seasonData.year && ` (${seasonData.year})`}
+                                      {` — ${seasonData.episodes.length} episode${seasonData.episodes.length !== 1 ? "s" : ""}`}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {selectedSeason && (
+                              <div className="space-y-2">
+                                <Label htmlFor="tmdb-episode">Episode (from TMDB)</Label>
+                                <Select
+                                  value={selectedEpisode?.episodeNumber.toString() || ""}
+                                  onValueChange={(value) => {
+                                    const seasonData = fullSeriesData?.seasons.find(
+                                      (s) => s.seasonNumber.toString() === selectedSeason,
+                                    )
+                                    const episodeData = seasonData?.episodes.find(
+                                      (e) => e.episodeNumber.toString() === value,
+                                    )
+                                    if (episodeData) {
+                                      handleEpisodeSelect(episodeData)
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger id="tmdb-episode">
+                                    <SelectValue placeholder="Select an episode" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {fullSeriesData?.seasons
+                                      .find((s) => s.seasonNumber.toString() === selectedSeason)
+                                      ?.episodes.map((ep) => (
+                                        <SelectItem
+                                          key={ep.episodeNumber}
+                                          value={ep.episodeNumber.toString()}
+                                        >
+                                          Episode {ep.episodeNumber}: {ep.title}
+                                          {ep.airDate && ` (${ep.airDate.split("-")[0]})`}
+                                        </SelectItem>
+                                      ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                        {/* Manual Season/Episode Input (always available as fallback) */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="season">Season (manual)</Label>
+                            <Input
+                              id="season"
+                              type="number"
+                              min="1"
+                              placeholder="e.g., 1"
+                              value={season}
+                              onChange={(e) => setSeason(e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="episode">Episode (manual)</Label>
+                            <Input
+                              id="episode"
+                              type="number"
+                              min="1"
+                              placeholder="e.g., 10"
+                              value={episode}
+                              onChange={(e) => setEpisode(e.target.value)}
+                            />
+                          </div>
                         </div>
                       </div>
                     )}

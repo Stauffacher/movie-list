@@ -97,11 +97,16 @@ export function MovieAutocomplete({ value, onSelect, disabled }: MovieAutocomple
 
             {error && !isLoading && (
               <CommandEmpty>
-                <div className="py-6 text-center">
-                  <p className="text-sm text-destructive">{error}</p>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Check your TMDB API key in environment variables
-                  </p>
+                <div className="py-6 text-center px-4">
+                  <p className="text-sm text-destructive font-medium">{error}</p>
+                  <div className="mt-3 text-xs text-muted-foreground space-y-1">
+                    <p>Common fixes:</p>
+                    <ul className="list-disc list-inside space-y-0.5 text-left max-w-md mx-auto">
+                      <li>Restart your Replit project after adding the secret</li>
+                      <li>Verify secret name is exactly: NEXT_PUBLIC_TMDB_API_KEY</li>
+                      <li>Check TMDB_TROUBLESHOOTING.md for detailed help</li>
+                    </ul>
+                  </div>
                 </div>
               </CommandEmpty>
             )}
@@ -117,11 +122,10 @@ export function MovieAutocomplete({ value, onSelect, disabled }: MovieAutocomple
             {!isLoading && !error && results.length > 0 && (
               <CommandGroup heading="Results">
                 {results.map((result) => (
-                  <CommandItem
+                  <div
                     key={`${result.mediaType}-${result.id}`}
-                    value={`${result.title}-${result.year}`}
-                    onSelect={() => handleSelect(result)}
-                    className="cursor-pointer"
+                    onClick={() => handleSelect(result)}
+                    className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
                   >
                     <div className="flex items-start gap-3 w-full">
                       {result.posterUrl ? (
@@ -165,7 +169,7 @@ export function MovieAutocomplete({ value, onSelect, disabled }: MovieAutocomple
                         )}
                       />
                     </div>
-                  </CommandItem>
+                  </div>
                 ))}
               </CommandGroup>
             )}

@@ -44,8 +44,13 @@ export async function searchTMDB(query: string): Promise<TMDBMovieResult[]> {
   const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY
 
   if (!apiKey) {
+    console.error("TMDB API key check:", {
+      hasKey: !!process.env.NEXT_PUBLIC_TMDB_API_KEY,
+      keyLength: process.env.NEXT_PUBLIC_TMDB_API_KEY?.length || 0,
+      allEnvKeys: Object.keys(process.env).filter((key) => key.includes("TMDB")),
+    })
     throw new Error(
-      "TMDB API key is not configured. Please set NEXT_PUBLIC_TMDB_API_KEY in your environment variables.",
+      "TMDB API key is not configured. Please set NEXT_PUBLIC_TMDB_API_KEY in your environment variables. Make sure to restart your Replit project after adding the secret.",
     )
   }
 

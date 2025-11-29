@@ -20,6 +20,8 @@ import { Badge } from "@/components/ui/badge"
 import { Trash2, Edit2, Plus, Search, Star, Tv, Download, Heart } from "lucide-react"
 import { getMovies, createMovie, updateMovie, deleteMovie } from "@/lib/movies-api"
 import type { Movie, MovieFormData } from "@/lib/movie-types"
+import { MovieAutocomplete } from "@/components/movie-autocomplete"
+import type { TMDBMovieResult } from "@/lib/searchTMDB"
 
 function StarRating({ value, onChange }: { value: number; onChange?: (rating: number) => void }) {
   return (
@@ -258,6 +260,19 @@ export default function MovieListApp() {
     }
   }
 
+  function handleTMDBSelect(result: TMDBMovieResult) {
+    // Autofill form fields from TMDB result
+    setMovieName(result.title)
+    setType(result.type)
+    if (result.posterUrl) {
+      setCoverImage(result.posterUrl)
+    }
+    // Optionally add year to notes if it doesn't already have content
+    if (result.year && !notes.trim()) {
+      setNotes(`Released: ${result.year}`)
+    }
+  }
+
   function openEditDialog(movie: Movie) {
     setCurrentMovie(movie)
     setMovieName(movie.name)
@@ -359,6 +374,18 @@ export default function MovieListApp() {
                     <DialogDescription>Track a movie or series you've watched</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Search for Movie or Series (optional)</Label>
+                      <MovieAutocomplete
+                        value={movieName || undefined}
+                        onSelect={handleTMDBSelect}
+                        disabled={isLoading}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Search TMDB to autofill title, type, and poster. Or enter manually below.
+                      </p>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="movie-name">Title *</Label>

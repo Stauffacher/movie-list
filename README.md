@@ -53,9 +53,11 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
 NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
+NEXT_PUBLIC_TMDB_API_KEY=your-tmdb-api-key
 ```
 
-See [FIREBASE_SETUP.md](./FIREBASE_SETUP.md) for detailed setup instructions.
+See [FIREBASE_SETUP.md](./FIREBASE_SETUP.md) for Firebase setup instructions.
+See [TMDB_SETUP.md](./TMDB_SETUP.md) for TMDB API key setup (optional, for autocomplete search).
 
 ### Running the Development Server
 

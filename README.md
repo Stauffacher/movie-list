@@ -1,36 +1,132 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Movie List App
+
+A Next.js 16 application for managing your movie collection with Firebase Firestore integration.
+
+## Overview
+
+This application allows you to:
+- **Create** movie entries with title, date watched, type, and rating
+- **View** all your movies in a responsive grid layout
+- **Update** movie details
+- **Delete** movies from your collection
+
+All data is persisted in Firebase Firestore, so your movie list is saved and synced across sessions.
+
+## Tech Stack
+
+- **Framework**: Next.js 16.0.3 (React 19.2.0)
+- **Language**: TypeScript
+- **Database**: Firebase Firestore
+- **Styling**: Tailwind CSS 4.1.9
+- **UI Components**: Radix UI primitives (shadcn/ui style)
+- **Icons**: Lucide React
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 20+
+- A Firebase project with Firestore enabled
+
+### Installation
+
+1. Clone or download this repository
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+### Firebase Setup
+
+**Important**: Before running the app, you need to configure Firebase.
+
+1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
+2. Enable Firestore Database in your Firebase project
+3. Get your Firebase configuration from Project Settings
+4. Add the following environment variables to your Replit Secrets Tab:
+
+```
+NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
+```
+
+See [FIREBASE_SETUP.md](./FIREBASE_SETUP.md) for detailed setup instructions.
+
+### Running the Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:5000](http://localhost:5000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Building for Production
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm start
+```
+
+## Project Structure
+
+```
+├── app/                    # Next.js App Router
+│   ├── layout.tsx         # Root layout with fonts and metadata
+│   ├── page.tsx           # Main movie list interface
+│   └── globals.css        # Global styles
+├── components/
+│   └── ui/                # Reusable UI components (shadcn/ui)
+├── lib/
+│   ├── firebase-client.ts # Firebase client-side initialization
+│   ├── movies-api.ts      # Firebase CRUD operations
+│   ├── movie-types.ts     # TypeScript interfaces
+│   └── utils.ts           # Utility functions
+└── FIREBASE_SETUP.md      # Firebase setup guide
+```
+
+## Features
+
+### Core Functionality
+
+- ✅ Create new movie entries
+- ✅ View all movies in a grid
+- ✅ Edit movie details
+- ✅ Delete movies
+- ✅ Star rating system (1-5 stars)
+- ✅ Support for Movies and Series
+
+### Technical Features
+
+- Firebase Firestore integration for data persistence
+- Responsive design with Tailwind CSS
+- Type-safe with TypeScript
+- Modern UI with Radix UI components
+
+## Environment Variables
+
+All Firebase configuration is done through environment variables. In Replit, add these to your Secrets tab:
+
+- `NEXT_PUBLIC_FIREBASE_API_KEY`
+- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+- `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+- `NEXT_PUBLIC_FIREBASE_APP_ID`
+
+## Replit Configuration
+
+This project is configured for Replit:
+- Port: 5000
+- Host: 0.0.0.0
+- Next.js configured for Replit's proxy
 
 ## Learn More
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Firebase Documentation](https://firebase.google.com/docs)
+- [Tailwind CSS](https://tailwindcss.com/docs)

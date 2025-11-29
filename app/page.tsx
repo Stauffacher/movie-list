@@ -1,65 +1,833 @@
-import Image from "next/image";
+"use client"
 
-export default function Home() {
+import { useState, useMemo } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
+import { Trash2, Edit2, Plus, Search, Star, Tv, Download, Heart } from "lucide-react"
+
+interface Movie {
+  id: string
+  name: string
+  entryDate: string
+  type: "Movie" | "Series"
+  rating: number
+  platform: string
+  notes: string
+  status: "Completed" | "Watching" | "Dropped"
+  season?: number
+  episode?: number
+  coverImage?: string
+  genres: string[]
+  watchAgain: boolean
+}
+
+export default function MovieListApp() {
+  const [movies, setMovies] = useState<Movie[]>([])
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [currentMovie, setCurrentMovie] = useState<Movie | null>(null)
+
+  const [movieName, setMovieName] = useState("")
+  const [entryDate, setEntryDate] = useState("")
+  const [type, setType] = useState<"Movie" | "Series">("Movie")
+  const [rating, setRating] = useState(0)
+  const [platform, setPlatform] = useState("Netflix")
+  const [notes, setNotes] = useState("")
+  const [status, setStatus] = useState<"Completed" | "Watching" | "Dropped">("Completed")
+  const [season, setSeason] = useState("")
+  const [episode, setEpisode] = useState("")
+  const [coverImage, setCoverImage] = useState("")
+  const [genreInput, setGenreInput] = useState("")
+  const [watchAgain, setWatchAgain] = useState(false)
+
+  const [searchQuery, setSearchQuery] = useState("")
+  const [filterType, setFilterType] = useState<string>("all")
+  const [filterPlatform, setFilterPlatform] = useState<string>("all")
+  const [filterStatus, setFilterStatus] = useState<string>("all")
+  const [sortBy, setSortBy] = useState<string>("date-desc")
+
+  const filteredAndSortedMovies = useMemo(() => {
+    const result = movies.filter((movie) => {
+      const matchesSearch = movie.name.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesType = filterType === "all" || movie.type === filterType
+      const matchesPlatform = filterPlatform === "all" || movie.platform === filterPlatform
+      const matchesStatus = filterStatus === "all" || movie.status === filterStatus
+      return matchesSearch && matchesType && matchesPlatform && matchesStatus
+    })
+
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case "date-desc":
+          return new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime()
+        case "date-asc":
+          return new Date(a.entryDate).getTime() - new Date(b.entryDate).getTime()
+        case "rating-desc":
+          return b.rating - a.rating
+        case "rating-asc":
+          return a.rating - b.rating
+        case "name-asc":
+          return a.name.localeCompare(b.name)
+        case "name-desc":
+          return b.name.localeCompare(a.name)
+        default:
+          return 0
+      }
+    })
+
+    return result
+  }, [movies, searchQuery, filterType, filterPlatform, filterStatus, sortBy])
+
+  const uniquePlatforms = useMemo(() => {
+    return Array.from(new Set(movies.map((m) => m.platform)))
+  }, [movies])
+
+  const resetForm = () => {
+    setMovieName("")
+    setEntryDate("")
+    setType("Movie")
+    setRating(0)
+    setPlatform("Netflix")
+    setNotes("")
+    setStatus("Completed")
+    setSeason("")
+    setEpisode("")
+    setCoverImage("")
+    setGenreInput("")
+    setWatchAgain(false)
+  }
+
+  // Create a new movie
+  const handleAddMovie = () => {
+    if (movieName.trim() && entryDate) {
+      const genres = genreInput
+        .split(",")
+        .map((g) => g.trim())
+        .filter((g) => g.length > 0)
+
+      const newMovie: Movie = {
+        id: Date.now().toString(),
+        name: movieName.trim(),
+        entryDate: entryDate,
+        type,
+        rating,
+        platform,
+        notes: notes.trim(),
+        status,
+        season: season ? Number.parseInt(season) : undefined,
+        episode: episode ? Number.parseInt(episode) : undefined,
+        coverImage: coverImage.trim() || undefined,
+        genres,
+        watchAgain,
+      }
+      setMovies([...movies, newMovie])
+      resetForm()
+      setIsAddDialogOpen(false)
+    }
+  }
+
+  // Update a movie
+  const handleUpdateMovie = () => {
+    if (currentMovie && movieName.trim() && entryDate) {
+      const genres = genreInput
+        .split(",")
+        .map((g) => g.trim())
+        .filter((g) => g.length > 0)
+
+      setMovies(
+        movies.map((movie) =>
+          movie.id === currentMovie.id
+            ? {
+                ...movie,
+                name: movieName.trim(),
+                entryDate: entryDate,
+                type,
+                rating,
+                platform,
+                notes: notes.trim(),
+                status,
+                season: season ? Number.parseInt(season) : undefined,
+                episode: episode ? Number.parseInt(episode) : undefined,
+                coverImage: coverImage.trim() || undefined,
+                genres,
+                watchAgain,
+              }
+            : movie,
+        ),
+      )
+      resetForm()
+      setCurrentMovie(null)
+      setIsEditDialogOpen(false)
+    }
+  }
+
+  // Delete a movie
+  const handleDeleteMovie = (id: string) => {
+    setMovies(movies.filter((movie) => movie.id !== id))
+  }
+
+  // Open edit dialog with movie data
+  const openEditDialog = (movie: Movie) => {
+    setCurrentMovie(movie)
+    setMovieName(movie.name)
+    setEntryDate(movie.entryDate)
+    setType(movie.type)
+    setRating(movie.rating)
+    setPlatform(movie.platform)
+    setNotes(movie.notes)
+    setStatus(movie.status)
+    setSeason(movie.season?.toString() || "")
+    setEpisode(movie.episode?.toString() || "")
+    setCoverImage(movie.coverImage || "")
+    setGenreInput(movie.genres.join(", "))
+    setWatchAgain(movie.watchAgain)
+    setIsEditDialogOpen(true)
+  }
+
+  const handleExportCSV = () => {
+    const headers = [
+      "Name",
+      "Type",
+      "Platform",
+      "Status",
+      "Rating",
+      "Date Watched",
+      "Season",
+      "Episode",
+      "Genres",
+      "Watch Again",
+      "Notes",
+    ]
+    const rows = movies.map((movie) => [
+      movie.name,
+      movie.type,
+      movie.platform,
+      movie.status,
+      movie.rating.toString(),
+      movie.entryDate,
+      movie.season?.toString() || "",
+      movie.episode?.toString() || "",
+      movie.genres.join("; "),
+      movie.watchAgain ? "Yes" : "No",
+      movie.notes.replace(/,/g, ";"),
+    ])
+
+    const csvContent = [headers, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(",")).join("\n")
+
+    const blob = new Blob([csvContent], { type: "text/csv" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `netflix-tracker-${new Date().toISOString().split("T")[0]}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const StarRating = ({ value, onChange }: { value: number; onChange?: (rating: number) => void }) => {
+    return (
+      <div className="flex gap-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={star}
+            type="button"
+            onClick={() => onChange?.(star)}
+            className={`${onChange ? "cursor-pointer hover:scale-110" : ""} transition-transform`}
+            disabled={!onChange}
+          >
+            <Star className={`w-5 h-5 ${star <= value ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} />
+          </button>
+        ))}
+      </div>
+    )
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen flex flex-col bg-background">
+      {/* Header */}
+      <header className="bg-primary text-primary-foreground py-6 px-4 shadow-lg">
+        <div className="container mx-auto">
+          <div className="flex items-center gap-3">
+            <Tv className="w-8 h-8" />
+            <div>
+              <h1 className="text-3xl font-bold">Netflix Tracker</h1>
+              <p className="text-sm opacity-90">Never forget what you've watched</p>
+            </div>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 container mx-auto px-4 py-8">
+        <div className="mb-6 space-y-4">
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+            <div className="flex-1 w-full md:max-w-md">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  placeholder="Search movies and series..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 flex-wrap">
+              {/* Add Movie Dialog */}
+              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Entry
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Add New Entry</DialogTitle>
+                    <DialogDescription>Track a movie or series you've watched</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="movie-name">Title *</Label>
+                        <Input
+                          id="movie-name"
+                          placeholder="Enter title"
+                          value={movieName}
+                          onChange={(e) => setMovieName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="entry-date">Date Watched *</Label>
+                        <Input
+                          id="entry-date"
+                          type="date"
+                          value={entryDate}
+                          onChange={(e) => setEntryDate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="type">Type</Label>
+                        <Select value={type} onValueChange={(value: "Movie" | "Series") => setType(value)}>
+                          <SelectTrigger id="type">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Movie">Movie</SelectItem>
+                            <SelectItem value="Series">Series</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="platform">Platform</Label>
+                        <Select value={platform} onValueChange={setPlatform}>
+                          <SelectTrigger id="platform">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Netflix">Netflix</SelectItem>
+                            <SelectItem value="Prime Video">Prime Video</SelectItem>
+                            <SelectItem value="Disney+">Disney+</SelectItem>
+                            <SelectItem value="HBO Max">HBO Max</SelectItem>
+                            <SelectItem value="Apple TV+">Apple TV+</SelectItem>
+                            <SelectItem value="Hulu">Hulu</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="status">Status</Label>
+                        <Select
+                          value={status}
+                          onValueChange={(value: "Completed" | "Watching" | "Dropped") => setStatus(value)}
+                        >
+                          <SelectTrigger id="status">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Completed">Completed</SelectItem>
+                            <SelectItem value="Watching">Watching</SelectItem>
+                            <SelectItem value="Dropped">Dropped</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Rating</Label>
+                        <StarRating value={rating} onChange={setRating} />
+                      </div>
+                    </div>
+
+                    {type === "Series" && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="season">Season</Label>
+                          <Input
+                            id="season"
+                            type="number"
+                            min="1"
+                            placeholder="e.g., 1"
+                            value={season}
+                            onChange={(e) => setSeason(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="episode">Episode</Label>
+                          <Input
+                            id="episode"
+                            type="number"
+                            min="1"
+                            placeholder="e.g., 10"
+                            value={episode}
+                            onChange={(e) => setEpisode(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <Label htmlFor="genres">Genres (comma separated)</Label>
+                      <Input
+                        id="genres"
+                        placeholder="e.g., Action, Thriller, Drama"
+                        value={genreInput}
+                        onChange={(e) => setGenreInput(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="cover-image">Cover Image URL (optional)</Label>
+                      <Input
+                        id="cover-image"
+                        placeholder="https://..."
+                        value={coverImage}
+                        onChange={(e) => setCoverImage(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="notes">Notes</Label>
+                      <Textarea
+                        id="notes"
+                        placeholder="Your thoughts, recommendations, etc."
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="watch-again"
+                        checked={watchAgain}
+                        onChange={(e) => setWatchAgain(e.target.checked)}
+                        className="w-4 h-4"
+                      />
+                      <Label htmlFor="watch-again" className="cursor-pointer">
+                        Would watch again
+                      </Label>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleAddMovie}>Add Entry</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              <Button variant="outline" onClick={handleExportCSV} disabled={movies.length === 0}>
+                <Download className="w-4 h-4 mr-2" />
+                Export CSV
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="Movie">Movies</SelectItem>
+                <SelectItem value="Series">Series</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filterPlatform} onValueChange={setFilterPlatform}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Platform" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Platforms</SelectItem>
+                {uniquePlatforms.map((p) => (
+                  <SelectItem key={p} value={p}>
+                    {p}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="Completed">Completed</SelectItem>
+                <SelectItem value="Watching">Watching</SelectItem>
+                <SelectItem value="Dropped">Dropped</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date-desc">Newest First</SelectItem>
+                <SelectItem value="date-asc">Oldest First</SelectItem>
+                <SelectItem value="rating-desc">Highest Rated</SelectItem>
+                <SelectItem value="rating-asc">Lowest Rated</SelectItem>
+                <SelectItem value="name-asc">A to Z</SelectItem>
+                <SelectItem value="name-desc">Z to A</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {(searchQuery || filterType !== "all" || filterPlatform !== "all" || filterStatus !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery("")
+                  setFilterType("all")
+                  setFilterPlatform("all")
+                  setFilterStatus("all")
+                }}
+              >
+                Clear Filters
+              </Button>
+            )}
+          </div>
+
+          <div>
+            <p className="text-sm text-muted-foreground">
+              Showing {filteredAndSortedMovies.length} of {movies.length} {movies.length === 1 ? "entry" : "entries"}
+            </p>
+          </div>
         </div>
+
+        {/* Movie List */}
+        {movies.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Tv className="w-12 h-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground text-center mb-2 font-medium">No entries yet</p>
+              <p className="text-sm text-muted-foreground text-center">
+                Start tracking what you watch on Netflix and other platforms!
+              </p>
+            </CardContent>
+          </Card>
+        ) : filteredAndSortedMovies.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Search className="w-12 h-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground text-center">No entries match your filters</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredAndSortedMovies.map((movie) => (
+              <Card key={movie.id} className="hover:shadow-lg transition-shadow overflow-hidden">
+                {movie.coverImage && (
+                  <div className="w-full h-48 overflow-hidden bg-muted">
+                    <img
+                      src={movie.coverImage || "/placeholder.svg"}
+                      alt={movie.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none"
+                      }}
+                    />
+                  </div>
+                )}
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <CardTitle className="line-clamp-2 text-balance">{movie.name}</CardTitle>
+                    {movie.watchAgain && <Heart className="w-5 h-5 text-red-500 fill-red-500 shrink-0" />}
+                  </div>
+                  <CardDescription>
+                    Watched:{" "}
+                    {new Date(movie.entryDate).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="secondary">{movie.type}</Badge>
+                    <Badge variant="outline">{movie.platform}</Badge>
+                    <Badge
+                      variant={
+                        movie.status === "Completed"
+                          ? "default"
+                          : movie.status === "Watching"
+                            ? "secondary"
+                            : "destructive"
+                      }
+                    >
+                      {movie.status}
+                    </Badge>
+                  </div>
+
+                  {movie.genres.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {movie.genres.map((genre, idx) => (
+                        <Badge key={idx} variant="outline" className="text-xs">
+                          {genre}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <StarRating value={movie.rating} />
+                    {movie.rating > 0 && <span className="text-sm text-muted-foreground">({movie.rating}/5)</span>}
+                  </div>
+
+                  {movie.type === "Series" && (movie.season || movie.episode) && (
+                    <p className="text-sm text-muted-foreground">
+                      {movie.season && `Season ${movie.season}`}
+                      {movie.season && movie.episode && " • "}
+                      {movie.episode && `Episode ${movie.episode}`}
+                    </p>
+                  )}
+
+                  {movie.notes && (
+                    <p className="text-sm text-muted-foreground line-clamp-2 italic">&ldquo;{movie.notes}&rdquo;</p>
+                  )}
+
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 bg-transparent"
+                      onClick={() => openEditDialog(movie)}
+                    >
+                      <Edit2 className="w-4 h-4 mr-2" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => handleDeleteMovie(movie.id)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Edit Movie Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Entry</DialogTitle>
+              <DialogDescription>Update your movie or series details</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-movie-name">Title *</Label>
+                  <Input
+                    id="edit-movie-name"
+                    placeholder="Enter title"
+                    value={movieName}
+                    onChange={(e) => setMovieName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-entry-date">Date Watched *</Label>
+                  <Input
+                    id="edit-entry-date"
+                    type="date"
+                    value={entryDate}
+                    onChange={(e) => setEntryDate(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-type">Type</Label>
+                  <Select value={type} onValueChange={(value: "Movie" | "Series") => setType(value)}>
+                    <SelectTrigger id="edit-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Movie">Movie</SelectItem>
+                      <SelectItem value="Series">Series</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-platform">Platform</Label>
+                  <Select value={platform} onValueChange={setPlatform}>
+                    <SelectTrigger id="edit-platform">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Netflix">Netflix</SelectItem>
+                      <SelectItem value="Prime Video">Prime Video</SelectItem>
+                      <SelectItem value="Disney+">Disney+</SelectItem>
+                      <SelectItem value="HBO Max">HBO Max</SelectItem>
+                      <SelectItem value="Apple TV+">Apple TV+</SelectItem>
+                      <SelectItem value="Hulu">Hulu</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-status">Status</Label>
+                  <Select
+                    value={status}
+                    onValueChange={(value: "Completed" | "Watching" | "Dropped") => setStatus(value)}
+                  >
+                    <SelectTrigger id="edit-status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Completed">Completed</SelectItem>
+                      <SelectItem value="Watching">Watching</SelectItem>
+                      <SelectItem value="Dropped">Dropped</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Rating</Label>
+                  <StarRating value={rating} onChange={setRating} />
+                </div>
+              </div>
+
+              {type === "Series" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-season">Season</Label>
+                    <Input
+                      id="edit-season"
+                      type="number"
+                      min="1"
+                      placeholder="e.g., 1"
+                      value={season}
+                      onChange={(e) => setSeason(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-episode">Episode</Label>
+                    <Input
+                      id="edit-episode"
+                      type="number"
+                      min="1"
+                      placeholder="e.g., 10"
+                      value={episode}
+                      onChange={(e) => setEpisode(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-genres">Genres (comma separated)</Label>
+                <Input
+                  id="edit-genres"
+                  placeholder="e.g., Action, Thriller, Drama"
+                  value={genreInput}
+                  onChange={(e) => setGenreInput(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-cover-image">Cover Image URL (optional)</Label>
+                <Input
+                  id="edit-cover-image"
+                  placeholder="https://..."
+                  value={coverImage}
+                  onChange={(e) => setCoverImage(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-notes">Notes</Label>
+                <Textarea
+                  id="edit-notes"
+                  placeholder="Your thoughts, recommendations, etc."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="edit-watch-again"
+                  checked={watchAgain}
+                  onChange={(e) => setWatchAgain(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <Label htmlFor="edit-watch-again" className="cursor-pointer">
+                  Would watch again
+                </Label>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleUpdateMovie}>Update Entry</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
+
+      {/* Footer */}
+      <footer className="bg-muted py-6 px-4 mt-8">
+        <div className="container mx-auto text-center">
+          <p className="text-sm text-muted-foreground">Netflix Tracker © {new Date().getFullYear()}</p>
+          <p className="text-xs text-muted-foreground mt-1">Keep track of everything you watch, never forget again</p>
+        </div>
+      </footer>
     </div>
-  );
+  )
 }

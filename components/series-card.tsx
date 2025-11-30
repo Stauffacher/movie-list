@@ -184,42 +184,6 @@ export function SeriesCard({ series, onEdit, onDelete, allSeriesEntries, onUpdat
     }
   }, [seasons, seenSeasons])
 
-  // Create a lookup map from TMDB seasons to get broadcast years
-  const seasonYearMap = useMemo(() => {
-    const map = new Map<number, string | null>()
-    seasons.forEach((season) => {
-      map.set(season.seasonNumber, season.year)
-    })
-    return map
-  }, [seasons])
-
-  // Build entries list when no TMDB data - show only the most recent entry per season
-  const entriesForDisplay = useMemo(() => {
-    // If we have TMDB data (tvDetails), don't use entries-based display
-    if (tvDetails) return []
-
-    // Group entries by season, keeping only the most recent entry for each season
-    const seasonMap = new Map<number | "none", Movie>()
-    
-    allSeriesEntries.forEach((entry) => {
-      const key = entry.season || "none"
-      const existing = seasonMap.get(key)
-      
-      // Keep the entry with the most recent date
-      if (!existing || new Date(entry.entryDate) > new Date(existing.entryDate)) {
-        seasonMap.set(key, entry)
-      }
-    })
-
-    // Convert to array and sort by season number (entries without season go to the end)
-    return Array.from(seasonMap.values()).sort((a, b) => {
-      if (a.season && b.season) return a.season - b.season
-      if (a.season && !b.season) return -1
-      if (!a.season && b.season) return 1
-      return 0
-    })
-  }, [tvDetails, allSeriesEntries])
-
   function handleSeasonToggle(seasonNumber: number, currentSeen: boolean) {
     const newSeen = !currentSeen
 
@@ -247,8 +211,8 @@ export function SeriesCard({ series, onEdit, onDelete, allSeriesEntries, onUpdat
     )
   }
 
-  if (!tvDetails && entriesForDisplay.length === 0) {
-    // Fallback to simple card if no TMDB data and no entries
+  if (seasons.length === 0) {
+    // Fallback to simple card if no seasons from TMDB
     return (
       <Card className="hover:shadow-lg transition-shadow">
         {series.coverImage && (
@@ -396,28 +360,6 @@ export function SeriesCard({ series, onEdit, onDelete, allSeriesEntries, onUpdat
                   </div>
                 )
               })}
-            </div>
-          </div>
-        )}
-        
-
-        {/* Show all entries when no TMDB data */}
-        {!tvDetails && entriesForDisplay.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex flex-col gap-3">
-              {entriesForDisplay.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="flex items-center justify-between gap-4 p-3 rounded-md border text-sm"
-                >
-                  <span className="font-medium">
-                    {entry.season ? `Season ${entry.season}` : "No season specified"}
-                    {entry.season && seasonYearMap.get(entry.season) && (
-                      <span className="text-muted-foreground font-normal"> ({seasonYearMap.get(entry.season)})</span>
-                    )}
-                  </span>
-                </div>
-              ))}
             </div>
           </div>
         )}

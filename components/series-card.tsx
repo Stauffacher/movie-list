@@ -140,17 +140,30 @@ export function SeriesCard({ series, onEdit, onDelete, allSeriesEntries }: Serie
     }
   }, [seasons, seenSeasons])
 
-  // Build entries list when no TMDB data - show all entries individually (not deduplicated)
+  // Build entries list when no TMDB data - show only the most recent entry per season
   const entriesForDisplay = useMemo(() => {
     // If we have TMDB data (tvDetails), don't use entries-based display
     if (tvDetails) return []
 
-    // Sort entries by season number (entries without season go to the end)
-    return [...allSeriesEntries].sort((a, b) => {
+    // Group entries by season, keeping only the most recent entry for each season
+    const seasonMap = new Map<number | "none", Movie>()
+    
+    allSeriesEntries.forEach((entry) => {
+      const key = entry.season || "none"
+      const existing = seasonMap.get(key)
+      
+      // Keep the entry with the most recent date
+      if (!existing || new Date(entry.entryDate) > new Date(existing.entryDate)) {
+        seasonMap.set(key, entry)
+      }
+    })
+
+    // Convert to array and sort by season number (entries without season go to the end)
+    return Array.from(seasonMap.values()).sort((a, b) => {
       if (a.season && b.season) return a.season - b.season
       if (a.season && !b.season) return -1
       if (!a.season && b.season) return 1
-      return new Date(a.entryDate).getTime() - new Date(b.entryDate).getTime()
+      return 0
     })
   }, [tvDetails, allSeriesEntries])
 

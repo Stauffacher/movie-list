@@ -168,6 +168,9 @@ export default function MovieListApp() {
           const newAlerts = alerts.filter((a) => !existingIds.has(a.id))
           return [...prev, ...newAlerts]
         })
+        console.log(`✅ Found ${alerts.length} new season(s)!`)
+      } else {
+        console.log('ℹ️ No new seasons found.')
       }
     } catch (error) {
       console.error("Failed to check for new seasons:", error)

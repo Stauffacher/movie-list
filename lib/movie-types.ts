@@ -6,7 +6,7 @@ export interface Movie {
   rating: number
   platform: string
   notes: string
-  status: "Completed" | "Watching" | "Dropped"
+  status: "Completed" | "Watching" | "Dropped" | "Watchlist"
   season?: number
   episode?: number
   coverImage?: string
@@ -24,7 +24,7 @@ export interface MovieFormData {
   rating: number
   platform: string
   notes: string
-  status: "Completed" | "Watching" | "Dropped"
+  status: "Completed" | "Watching" | "Dropped" | "Watchlist"
   season?: number
   episode?: number
   coverImage?: string

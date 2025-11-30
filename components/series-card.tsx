@@ -14,14 +14,44 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { Trash2, Edit2, Star, Heart, Loader2 } from "lucide-react"
 import { getTvSeasons, getTvDetails, searchTvSeriesByName, type SeriesSeasonInfo, type TMDBTvDetails } from "@/lib/tmdb"
-import { getAllSeenSeasons, setSeasonSeen } from "@/lib/episodes-api"
+import { updateMovie } from "@/lib/movies-api"
 import type { Movie } from "@/lib/movie-types"
+
+function getStorageKey(seriesName: string): string {
+  return `seen-seasons:${seriesName.toLowerCase().trim()}`
+}
+
+function loadSeenSeasonsFromStorage(seriesName: string): Map<number, boolean> {
+  if (typeof window === 'undefined') return new Map()
+  try {
+    const stored = localStorage.getItem(getStorageKey(seriesName))
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      return new Map(Object.entries(parsed).map(([k, v]) => [Number(k), Boolean(v)]))
+    }
+  } catch (e) {
+    console.error('Failed to load seen seasons from storage:', e)
+  }
+  return new Map()
+}
+
+function saveSeenSeasonsToStorage(seriesName: string, seenSeasons: Map<number, boolean>): void {
+  if (typeof window === 'undefined') return
+  try {
+    const obj: Record<number, boolean> = {}
+    seenSeasons.forEach((v, k) => { obj[k] = v })
+    localStorage.setItem(getStorageKey(seriesName), JSON.stringify(obj))
+  } catch (e) {
+    console.error('Failed to save seen seasons to storage:', e)
+  }
+}
 
 interface SeriesCardProps {
   series: Movie
   onEdit: (movie: Movie) => void
   onDelete: (id: string) => void
   allSeriesEntries: Movie[] // All entries for this series (for metadata)
+  onUpdate?: () => void // Callback to refresh the movies list
 }
 
 function StarRating({ value }: { value: number }) {
@@ -37,7 +67,7 @@ function StarRating({ value }: { value: number }) {
   )
 }
 
-export function SeriesCard({ series, onEdit, onDelete, allSeriesEntries }: SeriesCardProps) {
+export function SeriesCard({ series, onEdit, onDelete, allSeriesEntries, onUpdate }: SeriesCardProps) {
   const [seasons, setSeasons] = useState<SeriesSeasonInfo[]>([])
   const [tvDetails, setTvDetails] = useState<TMDBTvDetails | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -128,22 +158,11 @@ export function SeriesCard({ series, onEdit, onDelete, allSeriesEntries }: Serie
     autoLookupByName()
   }, [tmdbId, series.name])
 
-  // Load seen seasons from Firestore
+  // Load seen seasons from localStorage
   useEffect(() => {
-    if (!tmdbId) return
-
-    async function loadSeenSeasons() {
-      // tmdbId is already checked above, so it's safe to use non-null assertion
-      try {
-        const seen = await getAllSeenSeasons(tmdbId!)
-        setSeenSeasons(seen)
-      } catch (error) {
-        console.error("Failed to load seen seasons:", error)
-      }
-    }
-
-    loadSeenSeasons()
-  }, [tmdbId])
+    const seen = loadSeenSeasonsFromStorage(series.name)
+    setSeenSeasons(seen)
+  }, [series.name])
 
   // Calculate progress based on seasons
   const progress = useMemo(() => {
@@ -201,30 +220,16 @@ export function SeriesCard({ series, onEdit, onDelete, allSeriesEntries }: Serie
     })
   }, [tvDetails, allSeriesEntries])
 
-  async function handleSeasonToggle(seasonNumber: number, currentSeen: boolean) {
-    if (!tmdbId || isUpdating) return
+  function handleSeasonToggle(seasonNumber: number, currentSeen: boolean) {
+    const newSeen = !currentSeen
 
-    try {
-      setIsUpdating(true)
-      const newSeen = !currentSeen
+    // Update state
+    const newSeenSeasons = new Map(seenSeasons)
+    newSeenSeasons.set(seasonNumber, newSeen)
+    setSeenSeasons(newSeenSeasons)
 
-      // Optimistically update UI
-      const newSeenSeasons = new Map(seenSeasons)
-      newSeenSeasons.set(seasonNumber, newSeen)
-      setSeenSeasons(new Map(newSeenSeasons))
-
-      // Update Firestore
-      await setSeasonSeen(tmdbId!, seasonNumber, newSeen)
-    } catch (error) {
-      console.error("Failed to update season:", error)
-      // Revert optimistic update on error
-      const newSeenSeasons = new Map(seenSeasons)
-      newSeenSeasons.set(seasonNumber, currentSeen)
-      setSeenSeasons(new Map(newSeenSeasons))
-      alert("Failed to update season. Please try again.")
-    } finally {
-      setIsUpdating(false)
-    }
+    // Save to localStorage
+    saveSeenSeasonsToStorage(series.name, newSeenSeasons)
   }
 
   function isSeasonSeen(seasonNumber: number): boolean {
@@ -333,7 +338,9 @@ export function SeriesCard({ series, onEdit, onDelete, allSeriesEntries }: Serie
                   ? "default"
                   : status === "Watching"
                     ? "secondary"
-                    : "destructive"
+                    : status === "Dropped"
+                      ? "destructive"
+                      : "outline"
               }
             >
               {status}
@@ -372,23 +379,20 @@ export function SeriesCard({ series, onEdit, onDelete, allSeriesEntries }: Serie
                 return (
                   <div
                     key={season.seasonNumber}
-                    className="flex items-center gap-4 p-3 rounded-md border hover:bg-muted/50 transition-colors"
+                    className="flex items-center gap-4 p-3 rounded-md border hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => handleSeasonToggle(season.seasonNumber, isSeen)}
                   >
                     <Checkbox
-                      id={`season-${season.seasonNumber}`}
+                      id={`season-${series.name}-${season.seasonNumber}`}
                       checked={isSeen}
                       onCheckedChange={() => handleSeasonToggle(season.seasonNumber, isSeen)}
-                      disabled={isUpdating || !tmdbId}
                     />
-                    <label
-                      htmlFor={`season-${season.seasonNumber}`}
-                      className="flex-1 cursor-pointer text-sm font-medium"
-                    >
+                    <span className="flex-1 text-sm font-medium select-none">
                       Season {season.seasonNumber}
                       {season.year && (
                         <span className="text-muted-foreground font-normal"> ({season.year})</span>
                       )}
-                    </label>
+                    </span>
                   </div>
                 )
               })}

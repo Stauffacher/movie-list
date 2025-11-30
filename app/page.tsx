@@ -56,7 +56,7 @@ export default function MovieListApp() {
   const [rating, setRating] = useState(0)
   const [platform, setPlatform] = useState("Netflix")
   const [notes, setNotes] = useState("")
-  const [status, setStatus] = useState<"Completed" | "Watching" | "Dropped">("Completed")
+  const [status, setStatus] = useState<"Completed" | "Watching" | "Dropped" | "Watchlist">("Completed")
   const [season, setSeason] = useState("")
   const [episode, setEpisode] = useState("")
   const [coverImage, setCoverImage] = useState("")
@@ -550,7 +550,7 @@ export default function MovieListApp() {
                         <Label htmlFor="status">Status</Label>
                         <Select
                           value={status}
-                          onValueChange={(value: "Completed" | "Watching" | "Dropped") => setStatus(value)}
+                          onValueChange={(value: "Completed" | "Watching" | "Dropped" | "Watchlist") => setStatus(value)}
                         >
                           <SelectTrigger id="status">
                             <SelectValue />
@@ -559,6 +559,7 @@ export default function MovieListApp() {
                             <SelectItem value="Completed">Completed</SelectItem>
                             <SelectItem value="Watching">Watching</SelectItem>
                             <SelectItem value="Dropped">Dropped</SelectItem>
+                            <SelectItem value="Watchlist">Watchlist</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -769,6 +770,7 @@ export default function MovieListApp() {
                 <SelectItem value="Completed">Completed</SelectItem>
                 <SelectItem value="Watching">Watching</SelectItem>
                 <SelectItem value="Dropped">Dropped</SelectItem>
+                <SelectItem value="Watchlist">Watchlist</SelectItem>
               </SelectContent>
             </Select>
 
@@ -854,6 +856,7 @@ export default function MovieListApp() {
                   allSeriesEntries={seriesEntries}
                   onEdit={openEditDialog}
                   onDelete={handleDeleteMovie}
+                  onUpdate={loadMovies}
                 />
               )
             })}
@@ -878,14 +881,6 @@ export default function MovieListApp() {
                     <CardTitle className="line-clamp-2 text-balance">{movie.name}</CardTitle>
                     {movie.watchAgain && <Heart className="w-5 h-5 text-red-500 fill-red-500 shrink-0" />}
                   </div>
-                  <CardDescription>
-                    Watched:{" "}
-                    {new Date(movie.entryDate).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex flex-wrap gap-2">
@@ -897,7 +892,9 @@ export default function MovieListApp() {
                           ? "default"
                           : movie.status === "Watching"
                             ? "secondary"
-                            : "destructive"
+                            : movie.status === "Dropped"
+                              ? "destructive"
+                              : "outline"
                       }
                     >
                       {movie.status}
@@ -1037,7 +1034,7 @@ export default function MovieListApp() {
                   <Label htmlFor="edit-status">Status</Label>
                   <Select
                     value={status}
-                    onValueChange={(value: "Completed" | "Watching" | "Dropped") => setStatus(value)}
+                    onValueChange={(value: "Completed" | "Watching" | "Dropped" | "Watchlist") => setStatus(value)}
                   >
                     <SelectTrigger id="edit-status">
                       <SelectValue />
@@ -1046,6 +1043,7 @@ export default function MovieListApp() {
                       <SelectItem value="Completed">Completed</SelectItem>
                       <SelectItem value="Watching">Watching</SelectItem>
                       <SelectItem value="Dropped">Dropped</SelectItem>
+                      <SelectItem value="Watchlist">Watchlist</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -17,14 +17,13 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Trash2, Edit2, Plus, Search, Star, Tv, Download, Heart, Loader2, LogOut } from "lucide-react"
+import { Trash2, Edit2, Plus, Search, Star, Tv, Download, Heart, Loader2 } from "lucide-react"
 import { getMovies, createMovie, updateMovie, deleteMovie } from "@/lib/movies-api"
 import type { Movie, MovieFormData } from "@/lib/movie-types"
 import { MovieAutocomplete } from "@/components/movie-autocomplete"
 import type { TMDBMovieResult } from "@/lib/searchTMDB"
 import { getFullSeriesData, type FullSeriesData, type FullSeriesSeason, type FullSeriesEpisode } from "@/lib/tmdb"
 import { SeriesCard } from "@/components/series-card"
-import { useAuth } from "@/hooks/useAuth"
 
 function StarRating({ value, onChange }: { value: number; onChange?: (rating: number) => void }) {
   return (
@@ -45,7 +44,6 @@ function StarRating({ value, onChange }: { value: number; onChange?: (rating: nu
 }
 
 export default function MovieListApp() {
-  const { user, isLoading: authLoading, isAuthenticated } = useAuth()
   const [movies, setMovies] = useState<Movie[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
@@ -138,10 +136,8 @@ export default function MovieListApp() {
   }, [movies])
 
   useEffect(() => {
-    if (isAuthenticated) {
-      loadMovies()
-    }
-  }, [isAuthenticated])
+    loadMovies()
+  }, [])
 
   async function loadMovies() {
     try {
@@ -437,78 +433,16 @@ export default function MovieListApp() {
     URL.revokeObjectURL(url)
   }
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex flex-col bg-background">
-        <div className="flex-1 flex items-center justify-center">
-          <Card className="w-full max-w-md mx-4">
-            <CardHeader className="text-center">
-              <div className="flex justify-center mb-4">
-                <Tv className="w-16 h-16 text-primary" />
-              </div>
-              <CardTitle className="text-2xl">Netflix Tracker</CardTitle>
-              <CardDescription>
-                Track your movies and TV series across all streaming platforms
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button 
-                className="w-full" 
-                size="lg"
-                onClick={() => window.location.href = "/api/login"}
-              >
-                Sign In to Continue
-              </Button>
-              <p className="text-center text-sm text-muted-foreground">
-                Sign in with Google, GitHub, or email
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
       <header className="bg-primary text-primary-foreground py-6 px-4 shadow-lg">
         <div className="container mx-auto">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Tv className="w-8 h-8" />
-              <div>
-                <h1 className="text-3xl font-bold">Netflix Tracker</h1>
-                <p className="text-sm opacity-90">Never forget what you've watched</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              {user?.profileImageUrl && (
-                <img 
-                  src={user.profileImageUrl} 
-                  alt="Profile" 
-                  className="w-8 h-8 rounded-full object-cover"
-                />
-              )}
-              <Button 
-                variant="secondary" 
-                size="sm"
-                onClick={() => window.location.href = "/api/logout"}
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign Out
-              </Button>
+          <div className="flex items-center gap-3">
+            <Tv className="w-8 h-8" />
+            <div>
+              <h1 className="text-3xl font-bold">Netflix Tracker</h1>
+              <p className="text-sm opacity-90">Never forget what you've watched</p>
             </div>
           </div>
         </div>

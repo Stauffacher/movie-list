@@ -18,6 +18,13 @@ export function AlertContainer({ alerts, onDismiss, onViewSeries }: AlertContain
     // Filter out dismissed alerts
     const dismissed = getDismissedAlerts()
     const filtered = alerts.filter((alert) => !dismissed.has(alert.id))
+    console.log('🔔 AlertContainer:', {
+      totalAlerts: alerts.length,
+      dismissedCount: dismissed.size,
+      visibleAlerts: filtered.length,
+      dismissedIds: Array.from(dismissed),
+      alertIds: alerts.map(a => a.id)
+    })
     setVisibleAlerts(filtered)
   }, [alerts])
 

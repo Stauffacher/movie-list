@@ -26,7 +26,7 @@ import { getFullSeriesData, type FullSeriesData, type FullSeriesSeason, type Ful
 import { SeriesCard } from "@/components/series-card"
 import { AlertContainer } from "@/components/alert-container"
 import { checkAllTrackedSeries, type NewSeasonAlert } from "@/lib/season-checker"
-import { updateSeriesSeasonCount } from "@/lib/season-tracker"
+import { updateSeriesSeasonCount, getTrackedSeries } from "@/lib/season-tracker"
 import { getTvDetails } from "@/lib/tmdb"
 
 function StarRating({ value, onChange }: { value: number; onChange?: (rating: number) => void }) {
@@ -147,10 +147,31 @@ export default function MovieListApp() {
     loadMovies()
   }, [])
 
-  // Check for new seasons after movies are loaded
+  // Initialize tracking for existing series and check for new seasons after movies are loaded
   useEffect(() => {
     if (movies.length > 0 && !isLoading) {
-      checkForNewSeasons()
+      async function initializeAndCheck() {
+        // First, initialize tracking for any series that aren't tracked yet
+        const tracked = getTrackedSeries()
+        const untrackedSeries = movies.filter(
+          (movie) => movie.type === "Series" && movie.tmdbId && !tracked.has(movie.tmdbId)
+        )
+        
+        if (untrackedSeries.length > 0) {
+          console.log(`🔄 Auto-initializing tracking for ${untrackedSeries.length} series...`)
+          // Initialize tracking for untracked series (with delay to avoid rate limiting)
+          for (const movie of untrackedSeries) {
+            await initializeSeriesTracking(movie)
+            await new Promise((resolve) => setTimeout(resolve, 200))
+          }
+          console.log(`✅ Auto-initialization complete!`)
+        }
+        
+        // Then check for new seasons
+        await checkForNewSeasons()
+      }
+      
+      initializeAndCheck()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [movies.length, isLoading])
@@ -166,9 +187,11 @@ export default function MovieListApp() {
           // Merge new alerts with existing ones, avoiding duplicates
           const existingIds = new Set(prev.map((a) => a.id))
           const newAlerts = alerts.filter((a) => !existingIds.has(a.id))
-          return [...prev, ...newAlerts]
+          const updated = [...prev, ...newAlerts]
+          console.log(`✅ Found ${alerts.length} new season(s)!`, newAlerts)
+          console.log(`📊 Total alerts in state: ${updated.length}`)
+          return updated
         })
-        console.log(`✅ Found ${alerts.length} new season(s)!`)
       } else {
         console.log('ℹ️ No new seasons found.')
       }
@@ -211,6 +234,42 @@ export default function MovieListApp() {
         console.error(`Failed to initialize tracking for series ${movie.name}:`, error)
       }
     }
+  }
+
+  async function initializeAllSeriesTracking() {
+    // Get all series that have tmdbId but aren't tracked yet
+    const tracked = getTrackedSeries()
+    const seriesToTrack = movies.filter((movie) => {
+      return (
+        movie.type === "Series" &&
+        movie.tmdbId &&
+        !tracked.has(movie.tmdbId)
+      )
+    })
+
+    if (seriesToTrack.length === 0) {
+      console.log("✅ All series are already tracked!")
+      return
+    }
+
+    console.log(`🔄 Initializing tracking for ${seriesToTrack.length} series...`)
+
+    // Initialize tracking for each series
+    for (const movie of seriesToTrack) {
+      try {
+        await initializeSeriesTracking(movie)
+        console.log(`✅ Tracked: ${movie.name}`)
+        // Small delay to avoid overwhelming the API
+        await new Promise((resolve) => setTimeout(resolve, 200))
+      } catch (error) {
+        console.error(`❌ Failed to track ${movie.name}:`, error)
+      }
+    }
+
+    console.log(`✅ Done! Initialized tracking for ${seriesToTrack.length} series.`)
+    
+    // Check for new seasons after initializing
+    await checkForNewSeasons()
   }
 
   async function loadMovies() {
@@ -817,6 +876,16 @@ export default function MovieListApp() {
               <Button variant="outline" onClick={handleExportCSV} disabled={movies.length === 0}>
                 <Download className="w-4 h-4 mr-2" />
                 Export CSV
+              </Button>
+
+              <Button 
+                variant="outline" 
+                onClick={initializeAllSeriesTracking}
+                disabled={movies.length === 0 || isCheckingSeasons}
+                title="Initialize tracking for all existing series"
+              >
+                <Tv className="w-4 h-4 mr-2" />
+                Initialize Tracking
               </Button>
             </div>
           </div>

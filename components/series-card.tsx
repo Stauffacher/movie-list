@@ -374,7 +374,6 @@ export function SeriesCard({ series, onEdit, onDelete, allSeriesEntries }: Serie
                 >
                   <span className="font-medium">
                     {entry.season ? `Season ${entry.season}` : "No season specified"}
-                    {entry.episode && ` • Episode ${entry.episode}`}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {new Date(entry.entryDate).toLocaleDateString()}

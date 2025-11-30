@@ -16,6 +16,7 @@ import { Trash2, Edit2, Star, Heart, Loader2 } from "lucide-react"
 import { getTvSeasons, getTvDetails, searchTvSeriesByName, type SeriesSeasonInfo, type TMDBTvDetails } from "@/lib/tmdb"
 import { updateMovie } from "@/lib/movies-api"
 import type { Movie } from "@/lib/movie-types"
+import { getSeriesSeasonCount } from "@/lib/season-tracker"
 
 function getStorageKey(seriesName: string): string {
   return `seen-seasons:${seriesName.toLowerCase().trim()}`
@@ -73,6 +74,7 @@ export function SeriesCard({ series, onEdit, onDelete, allSeriesEntries, onUpdat
   const [isLoading, setIsLoading] = useState(true)
   const [seenSeasons, setSeenSeasons] = useState<Map<number, boolean>>(new Map())
   const [isUpdating, setIsUpdating] = useState(false)
+  const [hasNewSeason, setHasNewSeason] = useState(false)
 
   const tmdbId = series.tmdbId
 
@@ -163,6 +165,29 @@ export function SeriesCard({ series, onEdit, onDelete, allSeriesEntries, onUpdat
     const seen = loadSeenSeasonsFromStorage(series.name)
     setSeenSeasons(seen)
   }, [series.name])
+
+  // Check for new season
+  useEffect(() => {
+    async function checkNewSeason() {
+      if (!tmdbId) return
+
+      try {
+        const tracked = getSeriesSeasonCount(tmdbId)
+        if (tracked) {
+          const currentDetails = await getTvDetails(tmdbId)
+          if (currentDetails.number_of_seasons > tracked.lastKnownSeasonCount) {
+            setHasNewSeason(true)
+          }
+        }
+      } catch (error) {
+        console.error("Failed to check for new season:", error)
+      }
+    }
+
+    if (tmdbId) {
+      checkNewSeason()
+    }
+  }, [tmdbId])
 
   // Calculate progress based on seasons
   const progress = useMemo(() => {
@@ -263,8 +288,17 @@ export function SeriesCard({ series, onEdit, onDelete, allSeriesEntries, onUpdat
       )}
       <CardHeader>
         <div className="flex items-start justify-between gap-2 mb-2">
-          <CardTitle className="line-clamp-2 text-balance">{tvDetails?.name || series.name}</CardTitle>
-          {aggregatedData.hasWatchAgain && <Heart className="w-5 h-5 text-red-500 fill-red-500 shrink-0" />}
+          <div className="flex-1 min-w-0">
+            <CardTitle className="line-clamp-2 text-balance">{tvDetails?.name || series.name}</CardTitle>
+            {hasNewSeason && (
+              <Badge variant="default" className="mt-1 text-xs">
+                New Season Available!
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {aggregatedData.hasWatchAgain && <Heart className="w-5 h-5 text-red-500 fill-red-500" />}
+          </div>
         </div>
         <CardDescription>
           {tvDetails

@@ -24,6 +24,10 @@ import { MovieAutocomplete } from "@/components/movie-autocomplete"
 import type { TMDBMovieResult } from "@/lib/searchTMDB"
 import { getFullSeriesData, type FullSeriesData, type FullSeriesSeason, type FullSeriesEpisode } from "@/lib/tmdb"
 import { SeriesCard } from "@/components/series-card"
+import { AlertContainer } from "@/components/alert-container"
+import { checkAllTrackedSeries, type NewSeasonAlert } from "@/lib/season-checker"
+import { updateSeriesSeasonCount } from "@/lib/season-tracker"
+import { getTvDetails } from "@/lib/tmdb"
 
 function StarRating({ value, onChange }: { value: number; onChange?: (rating: number) => void }) {
   return (
@@ -76,6 +80,10 @@ export default function MovieListApp() {
   const [filterPlatform, setFilterPlatform] = useState<string>("all")
   const [filterStatus, setFilterStatus] = useState<string>("all")
   const [sortBy, setSortBy] = useState<string>("date-desc")
+
+  // New season alerts
+  const [newSeasonAlerts, setNewSeasonAlerts] = useState<NewSeasonAlert[]>([])
+  const [isCheckingSeasons, setIsCheckingSeasons] = useState(false)
 
   const filteredAndSortedMovies = useMemo(() => {
     let result = movies.filter((movie) => {
@@ -138,6 +146,69 @@ export default function MovieListApp() {
   useEffect(() => {
     loadMovies()
   }, [])
+
+  // Check for new seasons after movies are loaded
+  useEffect(() => {
+    if (movies.length > 0 && !isLoading) {
+      checkForNewSeasons()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [movies.length, isLoading])
+
+  async function checkForNewSeasons() {
+    if (isCheckingSeasons) return
+
+    try {
+      setIsCheckingSeasons(true)
+      const alerts = await checkAllTrackedSeries()
+      if (alerts.length > 0) {
+        setNewSeasonAlerts((prev) => {
+          // Merge new alerts with existing ones, avoiding duplicates
+          const existingIds = new Set(prev.map((a) => a.id))
+          const newAlerts = alerts.filter((a) => !existingIds.has(a.id))
+          return [...prev, ...newAlerts]
+        })
+      }
+    } catch (error) {
+      console.error("Failed to check for new seasons:", error)
+    } finally {
+      setIsCheckingSeasons(false)
+    }
+  }
+
+  function handleDismissAlert(alertId: string) {
+    setNewSeasonAlerts((prev) => prev.filter((alert) => alert.id !== alertId))
+  }
+
+  function handleViewSeries(tmdbId: number) {
+    // Find the series card and scroll to it
+    const seriesCard = document.querySelector(`[data-series-tmdb-id="${tmdbId}"]`)
+    if (seriesCard) {
+      seriesCard.scrollIntoView({ behavior: "smooth", block: "center" })
+      // Highlight the card briefly
+      seriesCard.classList.add("ring-2", "ring-primary", "ring-offset-2")
+      setTimeout(() => {
+        seriesCard.classList.remove("ring-2", "ring-primary", "ring-offset-2")
+      }, 2000)
+    }
+  }
+
+  async function initializeSeriesTracking(movie: Movie) {
+    // Only track series with tmdbId
+    if (movie.type === "Series" && movie.tmdbId) {
+      try {
+        const tvDetails = await getTvDetails(movie.tmdbId)
+        updateSeriesSeasonCount(
+          movie.tmdbId,
+          tvDetails.number_of_seasons,
+          movie.name,
+          movie.coverImage,
+        )
+      } catch (error) {
+        console.error(`Failed to initialize tracking for series ${movie.name}:`, error)
+      }
+    }
+  }
 
   async function loadMovies() {
     try {
@@ -206,12 +277,19 @@ export default function MovieListApp() {
         coverImage: coverImage.trim() || undefined,
         genres,
         watchAgain,
+        tmdbId,
       }
 
-      await createMovie(movieData)
+      const newMovie = await createMovie(movieData)
       resetForm()
       setIsAddDialogOpen(false)
       await loadMovies()
+      // Initialize tracking for new series
+      if (newMovie.type === "Series" && newMovie.tmdbId) {
+        await initializeSeriesTracking(newMovie)
+        // Check for new seasons after initializing tracking
+        await checkForNewSeasons()
+      }
     } catch (error: any) {
       console.error("Failed to create movie:", error)
       console.error("Error details:", {
@@ -262,10 +340,19 @@ export default function MovieListApp() {
       }
 
       await updateMovie(currentMovie.id, movieData)
+      const updatedMovie: Movie = {
+        ...currentMovie,
+        ...movieData,
+        tmdbId: tmdbId || currentMovie.tmdbId,
+      }
       resetForm()
       setCurrentMovie(null)
       setIsEditDialogOpen(false)
       await loadMovies()
+      // Update tracking if tmdbId was added or changed
+      if (updatedMovie.type === "Series" && updatedMovie.tmdbId) {
+        await initializeSeriesTracking(updatedMovie)
+      }
     } catch (error: any) {
       console.error("Failed to update movie:", error)
       const message = error?.message || "Failed to update movie"
@@ -850,14 +937,19 @@ export default function MovieListApp() {
               // Merge tmdbId from any entry that has it
               const seriesWithTmdb = { ...representative, tmdbId: entryWithTmdb.tmdbId }
               return (
-                <SeriesCard
+                <div
                   key={`series-${groupKey}`}
-                  series={seriesWithTmdb}
-                  allSeriesEntries={seriesEntries}
-                  onEdit={openEditDialog}
-                  onDelete={handleDeleteMovie}
-                  onUpdate={loadMovies}
-                />
+                  data-series-tmdb-id={seriesWithTmdb.tmdbId || undefined}
+                  className="transition-all duration-300"
+                >
+                  <SeriesCard
+                    series={seriesWithTmdb}
+                    allSeriesEntries={seriesEntries}
+                    onEdit={openEditDialog}
+                    onDelete={handleDeleteMovie}
+                    onUpdate={loadMovies}
+                  />
+                </div>
               )
             })}
 
@@ -1133,6 +1225,13 @@ export default function MovieListApp() {
           </DialogContent>
         </Dialog>
       </main>
+
+      {/* New Season Alerts */}
+      <AlertContainer
+        alerts={newSeasonAlerts}
+        onDismiss={handleDismissAlert}
+        onViewSeries={handleViewSeries}
+      />
 
       {/* Footer */}
       <footer className="bg-muted py-6 px-4 mt-8">

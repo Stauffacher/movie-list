@@ -119,3 +119,6 @@ When you select an episode, the form automatically fills:
 - All TMDB API calls respect rate limits (40 requests per 10 seconds)
 
 
+
+
+

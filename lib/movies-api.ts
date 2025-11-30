@@ -50,6 +50,7 @@ export async function getMovies(): Promise<Movie[]> {
         coverImage: data.coverImage,
         genres: data.genres || [],
         watchAgain: data.watchAgain || false,
+        tmdbId: data.tmdbId,
         createdAt: data.createdAt?.toDate(),
         updatedAt: data.updatedAt?.toDate(),
       })
@@ -96,6 +97,9 @@ export async function createMovie(movieData: MovieFormData): Promise<Movie> {
     }
     if (movieData.coverImage && movieData.coverImage.trim()) {
       newMovieData.coverImage = movieData.coverImage.trim()
+    }
+    if (movieData.tmdbId !== undefined && movieData.tmdbId !== null) {
+      newMovieData.tmdbId = movieData.tmdbId
     }
 
     // Remove any undefined values before sending to Firestore
@@ -154,6 +158,9 @@ export async function updateMovie(id: string, movieData: MovieFormData): Promise
     }
     if (movieData.coverImage && movieData.coverImage.trim()) {
       updateDataRaw.coverImage = movieData.coverImage.trim()
+    }
+    if (movieData.tmdbId !== undefined && movieData.tmdbId !== null) {
+      updateDataRaw.tmdbId = movieData.tmdbId
     }
 
     // Remove any undefined values before sending to Firestore

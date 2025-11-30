@@ -12,6 +12,7 @@ export interface Movie {
   coverImage?: string
   genres: string[]
   watchAgain: boolean
+  tmdbId?: number // TMDB ID for series grouping
   createdAt?: Date
   updatedAt?: Date
 }
@@ -29,4 +30,5 @@ export interface MovieFormData {
   coverImage?: string
   genres: string[]
   watchAgain: boolean
+  tmdbId?: number // TMDB ID for series grouping
 }

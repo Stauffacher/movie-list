@@ -23,6 +23,7 @@ import type { Movie, MovieFormData } from "@/lib/movie-types"
 import { MovieAutocomplete } from "@/components/movie-autocomplete"
 import type { TMDBMovieResult } from "@/lib/searchTMDB"
 import { getFullSeriesData, type FullSeriesData, type FullSeriesSeason, type FullSeriesEpisode } from "@/lib/tmdb"
+import { SeriesCard } from "@/components/series-card"
 
 function StarRating({ value, onChange }: { value: number; onChange?: (rating: number) => void }) {
   return (
@@ -61,6 +62,7 @@ export default function MovieListApp() {
   const [coverImage, setCoverImage] = useState("")
   const [genreInput, setGenreInput] = useState("")
   const [watchAgain, setWatchAgain] = useState(false)
+  const [tmdbId, setTmdbId] = useState<number | undefined>(undefined)
 
   // TMDB TV Series seasons/episodes state
   const [fullSeriesData, setFullSeriesData] = useState<FullSeriesData | null>(null)
@@ -106,6 +108,29 @@ export default function MovieListApp() {
     return result
   }, [movies, searchQuery, filterType, filterPlatform, filterStatus, sortBy])
 
+  // Group series by TMDB ID (or by name if tmdbId is missing)
+  const groupedItems = useMemo(() => {
+    const moviesList: Movie[] = []
+    const seriesMap = new Map<number | string, Movie[]>()
+
+    filteredAndSortedMovies.forEach((movie) => {
+      if (movie.type === "Series") {
+        // Group series by tmdbId if available, otherwise by normalized name
+        const groupKey = movie.tmdbId || movie.name.toLowerCase().trim()
+        
+        if (!seriesMap.has(groupKey)) {
+          seriesMap.set(groupKey, [])
+        }
+        seriesMap.get(groupKey)!.push(movie)
+      } else {
+        // Movies go to movies list
+        moviesList.push(movie)
+      }
+    })
+
+    return { movies: moviesList, series: seriesMap }
+  }, [filteredAndSortedMovies])
+
   const uniquePlatforms = useMemo(() => {
     return Array.from(new Set(movies.map((m) => m.platform).filter(Boolean)))
   }, [movies])
@@ -148,6 +173,7 @@ export default function MovieListApp() {
     setCoverImage("")
     setGenreInput("")
     setWatchAgain(false)
+    setTmdbId(undefined)
     // Reset TMDB TV series data
     setFullSeriesData(null)
     setSelectedTvSeriesId(null)
@@ -232,6 +258,7 @@ export default function MovieListApp() {
         coverImage: coverImage.trim() || undefined,
         genres,
         watchAgain,
+        tmdbId: tmdbId || currentMovie.tmdbId, // Use new tmdbId if set, otherwise preserve existing
       }
 
       await updateMovie(currentMovie.id, movieData)
@@ -277,6 +304,7 @@ export default function MovieListApp() {
     // Autofill form fields from TMDB result
     setMovieName(result.title)
     setType(result.type)
+    setTmdbId(result.id) // Store TMDB ID for series grouping
     if (result.posterUrl) {
       setCoverImage(result.posterUrl)
     }
@@ -291,9 +319,7 @@ export default function MovieListApp() {
       setEpisode("")
 
       try {
-        console.log("Fetching full series data for TV series ID:", result.id)
         const seriesData = await getFullSeriesData(result.id)
-        console.log("Series data received:", seriesData)
         setFullSeriesData(seriesData)
       } catch (error: any) {
         console.error("Failed to fetch full series data:", error)
@@ -364,6 +390,7 @@ export default function MovieListApp() {
     setCoverImage(movie.coverImage || "")
     setGenreInput(movie.genres?.join(", ") || "")
     setWatchAgain(movie.watchAgain || false)
+    setTmdbId(movie.tmdbId)
     setIsEditDialogOpen(true)
   }
 
@@ -777,7 +804,9 @@ export default function MovieListApp() {
 
           <div>
             <p className="text-sm text-muted-foreground">
-              Showing {filteredAndSortedMovies.length} of {movies.length} {movies.length === 1 ? "entry" : "entries"}
+              Showing {groupedItems.movies.length + groupedItems.series.size} of {movies.length}{" "}
+              {movies.length === 1 ? "entry" : "entries"}
+              {groupedItems.series.size > 0 && ` (${groupedItems.series.size} series grouped)`}
             </p>
           </div>
         </div>
@@ -799,7 +828,7 @@ export default function MovieListApp() {
               </p>
             </CardContent>
           </Card>
-        ) : filteredAndSortedMovies.length === 0 ? (
+        ) : groupedItems.movies.length === 0 && groupedItems.series.size === 0 ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Search className="w-12 h-12 text-muted-foreground mb-4" />
@@ -808,7 +837,23 @@ export default function MovieListApp() {
           </Card>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredAndSortedMovies.map((movie) => (
+            {/* Render Series Cards (grouped) */}
+            {Array.from(groupedItems.series.entries()).map(([groupKey, seriesEntries]: [number | string, Movie[]]) => {
+              // Use the first entry as the representative (for metadata like coverImage)
+              const representative = seriesEntries[0]
+              return (
+                <SeriesCard
+                  key={`series-${groupKey}`}
+                  series={representative}
+                  allSeriesEntries={seriesEntries}
+                  onEdit={openEditDialog}
+                  onDelete={handleDeleteMovie}
+                />
+              )
+            })}
+
+            {/* Render Movie Cards and Series without TMDB ID */}
+            {groupedItems.movies.map((movie) => (
               <Card key={movie.id} className="hover:shadow-lg transition-shadow overflow-hidden">
                 {movie.coverImage && (
                   <div className="w-full h-48 overflow-hidden bg-muted">
@@ -914,6 +959,18 @@ export default function MovieListApp() {
               <DialogDescription>Update your movie or series details</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Search for Movie or Series (optional)</Label>
+                <MovieAutocomplete
+                  value={movieName || undefined}
+                  onSelect={handleTMDBSelect}
+                  disabled={isLoading}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Search TMDB to autofill title, type, poster, and add TMDB ID for series grouping.
+                </p>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-movie-name">Title *</Label>

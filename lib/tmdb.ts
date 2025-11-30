@@ -73,6 +73,14 @@ export interface TMDBTvDetails {
   seasons: TMDBSeason[]
 }
 
+export interface SeriesSeasonInfo {
+  seasonNumber: number
+  year: string | null
+  episodeCount: number
+  tmdbSeasonId: number
+  name: string
+}
+
 export interface SeasonEpisode {
   season: number
   episodes: EpisodeInfo[]
@@ -156,6 +164,51 @@ export async function getTvDetails(tvId: number): Promise<TMDBTvDetails> {
   const data: TMDBTvDetails = await response.json()
   setCached(cacheKey, data)
   return data
+}
+
+/**
+ * Get all seasons for a TV series (simplified - uses seasons array from TV details)
+ * This is more efficient than fetching each season individually when we only need season info
+ */
+export async function getTvSeasons(tvId: number): Promise<SeriesSeasonInfo[]> {
+  try {
+    const tvDetails = await getTvDetails(tvId)
+    
+    // Extract season info from the seasons array
+    const seasons: SeriesSeasonInfo[] = tvDetails.seasons
+      .filter((season) => season.season_number > 0) // Filter out specials (season 0)
+      .map((season) => {
+        const year = season.air_date ? season.air_date.split("-")[0] : null
+        return {
+          seasonNumber: season.season_number,
+          year,
+          episodeCount: season.episode_count,
+          tmdbSeasonId: season.id,
+          name: season.name || `Season ${season.season_number}`,
+        }
+      })
+      .sort((a, b) => {
+        // Sort by year (ascending, oldest first), then by season number if years are equal
+        if (a.year && b.year) {
+          const yearA = Number.parseInt(a.year)
+          const yearB = Number.parseInt(b.year)
+          if (!isNaN(yearA) && !isNaN(yearB)) {
+            const yearDiff = yearA - yearB
+            if (yearDiff !== 0) return yearDiff
+          }
+        }
+        // If one has a year and the other doesn't, prioritize the one with a year
+        if (a.year && !b.year) return -1
+        if (!a.year && b.year) return 1
+        // If years are equal or both null, sort by season number (ascending)
+        return a.seasonNumber - b.seasonNumber
+      })
+
+    return seasons
+  } catch (error) {
+    console.error("Error fetching TV seasons:", error)
+    throw error
+  }
 }
 
 export async function getSeasonEpisodes(tvId: number, seasonNumber: number): Promise<TMDBSeason> {
@@ -300,13 +353,6 @@ export async function getFullSeriesData(seriesId: number): Promise<FullSeriesDat
       if (!a.year && b.year) return 1
       // If years are equal or both null, sort by season number (ascending)
       return a.seasonNumber - b.seasonNumber
-    })
-
-    console.log("Full series data fetched:", {
-      title: tvDetails.name,
-      tmdbId: tvDetails.id,
-      seasonsCount: filteredSeasons.length,
-      seasons: filteredSeasons.map(s => ({ season: s.seasonNumber, year: s.year }))
     })
 
     return {

@@ -839,12 +839,18 @@ export default function MovieListApp() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {/* Render Series Cards (grouped) */}
             {Array.from(groupedItems.series.entries()).map(([groupKey, seriesEntries]: [number | string, Movie[]]) => {
-              // Use the first entry as the representative (for metadata like coverImage)
-              const representative = seriesEntries[0]
+              // Find an entry with tmdbId if available, otherwise use first entry
+              const entryWithTmdb = seriesEntries.find(e => e.tmdbId) || seriesEntries[0]
+              // Use entry with cover image, preferring one with tmdbId
+              const representative = seriesEntries.find(e => e.coverImage && e.tmdbId) || 
+                                     seriesEntries.find(e => e.coverImage) || 
+                                     entryWithTmdb
+              // Merge tmdbId from any entry that has it
+              const seriesWithTmdb = { ...representative, tmdbId: entryWithTmdb.tmdbId }
               return (
                 <SeriesCard
                   key={`series-${groupKey}`}
-                  series={representative}
+                  series={seriesWithTmdb}
                   allSeriesEntries={seriesEntries}
                   onEdit={openEditDialog}
                   onDelete={handleDeleteMovie}

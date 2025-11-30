@@ -140,6 +140,15 @@ export function SeriesCard({ series, onEdit, onDelete, allSeriesEntries }: Serie
     }
   }, [seasons, seenSeasons])
 
+  // Create a lookup map from TMDB seasons to get broadcast years
+  const seasonYearMap = useMemo(() => {
+    const map = new Map<number, string | null>()
+    seasons.forEach((season) => {
+      map.set(season.seasonNumber, season.year)
+    })
+    return map
+  }, [seasons])
+
   // Build entries list when no TMDB data - show only the most recent entry per season
   const entriesForDisplay = useMemo(() => {
     // If we have TMDB data (tvDetails), don't use entries-based display
@@ -374,9 +383,9 @@ export function SeriesCard({ series, onEdit, onDelete, allSeriesEntries }: Serie
                 >
                   <span className="font-medium">
                     {entry.season ? `Season ${entry.season}` : "No season specified"}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(entry.entryDate).toLocaleDateString()}
+                    {entry.season && seasonYearMap.get(entry.season) && (
+                      <span className="text-muted-foreground font-normal"> ({seasonYearMap.get(entry.season)})</span>
+                    )}
                   </span>
                 </div>
               ))}

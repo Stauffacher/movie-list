@@ -237,18 +237,51 @@ export default function MovieListApp() {
   }
 
   async function initializeAllSeriesTracking() {
-    // Get all series that have tmdbId but aren't tracked yet
+    // Get all series that have tmdbId
     const tracked = getTrackedSeries()
-    const seriesToTrack = movies.filter((movie) => {
-      return (
-        movie.type === "Series" &&
-        movie.tmdbId &&
-        !tracked.has(movie.tmdbId)
-      )
+    const allSeries = movies.filter((movie) => {
+      return movie.type === "Series" && movie.tmdbId
+    })
+
+    // Log series without tmdbId for debugging
+    const seriesWithoutTmdbId = movies.filter((movie) => {
+      return movie.type === "Series" && !movie.tmdbId
+    })
+    if (seriesWithoutTmdbId.length > 0) {
+      console.log(`ℹ️ Found ${seriesWithoutTmdbId.length} series without TMDB ID (won't be tracked):`)
+      seriesWithoutTmdbId.forEach((movie) => {
+        console.log(`  - ${movie.name} (needs TMDB ID)`)
+      })
+      console.log(`💡 To track these series, edit them and search for the series in the autocomplete to add TMDB ID.`)
+    }
+
+    // Find series that aren't tracked OR have incomplete tracking data
+    const seriesToTrack = allSeries.filter((movie) => {
+      if (!movie.tmdbId) return false
+      const existing = tracked.get(movie.tmdbId)
+      // Track if not exists OR if missing required fields
+      return !existing || !existing.lastKnownSeasonCount || !existing.lastChecked
     })
 
     if (seriesToTrack.length === 0) {
-      console.log("✅ All series are already tracked!")
+      console.log("✅ All series are already tracked with complete data!")
+      // Still update existing ones to refresh season counts
+      const seriesToUpdate = allSeries.filter((movie) => {
+        return movie.tmdbId && tracked.has(movie.tmdbId)
+      })
+      if (seriesToUpdate.length > 0) {
+        console.log(`🔄 Updating season counts for ${seriesToUpdate.length} existing series...`)
+        for (const movie of seriesToUpdate) {
+          try {
+            await initializeSeriesTracking(movie)
+            console.log(`✅ Updated: ${movie.name}`)
+            await new Promise((resolve) => setTimeout(resolve, 200))
+          } catch (error) {
+            console.error(`❌ Failed to update ${movie.name}:`, error)
+          }
+        }
+      }
+      await checkForNewSeasons()
       return
     }
 
@@ -886,6 +919,20 @@ export default function MovieListApp() {
               >
                 <Tv className="w-4 h-4 mr-2" />
                 Initialize Tracking
+              </Button>
+
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  if (confirm('Clear all dismissed alerts? This will allow previously dismissed alerts to show again.')) {
+                    localStorage.removeItem('dismissed-season-alerts')
+                    console.log('✅ Cleared dismissed alerts. Refresh the page to see alerts again.')
+                    location.reload()
+                  }
+                }}
+                title="Clear dismissed alerts (for testing)"
+              >
+                Clear Dismissed
               </Button>
             </div>
           </div>

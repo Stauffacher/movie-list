@@ -41,9 +41,10 @@ export async function checkForNewSeasons(tmdbId: number): Promise<NewSeasonAlert
         trackedData.coverImage,
       )
 
-      // Return alert
+      // Return alert with unique ID (includes timestamp to avoid conflicts when testing)
+      const alertId = `alert-${tmdbId}-${currentSeasonCount}-${Date.now()}`
       return {
-        id: `alert-${tmdbId}-${currentSeasonCount}`,
+        id: alertId,
         tmdbId,
         seriesName: trackedData.seriesName,
         newSeasonNumber: currentSeasonCount,

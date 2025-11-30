@@ -366,4 +366,53 @@ export async function getFullSeriesData(seriesId: number): Promise<FullSeriesDat
   }
 }
 
+export interface AutoLookupResult {
+  tmdbId: number
+  seasons: SeriesSeasonInfo[]
+}
+
+/**
+ * Search for a TV series by name and return the first matching result's TMDB ID and seasons with years.
+ * Used for auto-lookup when a series doesn't have a TMDB ID linked.
+ */
+export async function searchTvSeriesByName(seriesName: string): Promise<AutoLookupResult | null> {
+  try {
+    const apiKey = getApiKey()
+    const cacheKey = `search-tv:${seriesName.toLowerCase().trim()}`
+
+    const cached = getCached(cacheKey)
+    if (cached) return cached
+
+    // Search for TV series only
+    const url = `${TMDB_API_BASE}/search/tv?api_key=${apiKey}&query=${encodeURIComponent(seriesName)}&language=en-US&page=1`
+    const response = await fetch(url)
+
+    if (!response.ok) {
+      console.error("TMDB search error:", response.status)
+      return null
+    }
+
+    const data = await response.json()
+    
+    if (!data.results || data.results.length === 0) {
+      setCached(cacheKey, null)
+      return null
+    }
+
+    // Get the first result (best match)
+    const firstResult = data.results[0]
+    const tvId = firstResult.id
+
+    // Get seasons for this TV show
+    const seasons = await getTvSeasons(tvId)
+    
+    const result: AutoLookupResult = { tmdbId: tvId, seasons }
+    setCached(cacheKey, result)
+    return result
+  } catch (error) {
+    console.error("Error searching TV series by name:", error)
+    return null
+  }
+}
+
 

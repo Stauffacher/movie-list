@@ -13,7 +13,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { Trash2, Edit2, Star, Heart, Loader2 } from "lucide-react"
-import { getTvSeasons, getTvDetails, type SeriesSeasonInfo, type TMDBTvDetails } from "@/lib/tmdb"
+import { getTvSeasons, getTvDetails, searchTvSeriesByName, type SeriesSeasonInfo, type TMDBTvDetails } from "@/lib/tmdb"
 import { getAllSeenSeasons, setSeasonSeen } from "@/lib/episodes-api"
 import type { Movie } from "@/lib/movie-types"
 
@@ -71,10 +71,9 @@ export function SeriesCard({ series, onEdit, onDelete, allSeriesEntries }: Serie
     }
   }, [allSeriesEntries])
 
-  // Load series data and seasons from TMDB
+  // Load series data and seasons from TMDB (when tmdbId is available)
   useEffect(() => {
     if (!tmdbId) {
-      setIsLoading(false)
       return
     }
 
@@ -102,6 +101,32 @@ export function SeriesCard({ series, onEdit, onDelete, allSeriesEntries }: Serie
 
     loadSeriesData()
   }, [tmdbId])
+
+  // Auto-lookup TMDB data by series name when tmdbId is missing
+  useEffect(() => {
+    if (tmdbId) {
+      // Already have tmdbId, skip auto-lookup
+      return
+    }
+
+    async function autoLookupByName() {
+      try {
+        setIsLoading(true)
+        const result = await searchTvSeriesByName(series.name)
+        if (result && result.seasons.length > 0) {
+          setSeasons(result.seasons)
+          // Note: We don't set tvDetails here since we only have seasons data from auto-lookup
+          // The seasons array is enough to display broadcast years
+        }
+      } catch (error) {
+        console.error("Failed to auto-lookup series:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    autoLookupByName()
+  }, [tmdbId, series.name])
 
   // Load seen seasons from Firestore
   useEffect(() => {
